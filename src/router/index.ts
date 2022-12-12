@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router';
 import { initBots, useBotStore } from '@/stores/ftbotwrapper';
+import { loadBots } from '../shared/aws/load-bots';
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -86,6 +87,7 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   // Init bots here...
+  loadBots();
   initBots();
   const botStore = useBotStore();
   if (!to.meta?.allowAnonymous && !botStore.hasBots) {

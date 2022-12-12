@@ -78,6 +78,11 @@ import { useBotStore } from '@/stores/ftbotwrapper';
 import { ProfitInterface, ComparisonTableItems } from '@/types';
 import { TableField, TableItem } from 'bootstrap-vue-next';
 
+const sortFunction = (a: ComparisonTableItems, b: ComparisonTableItems) => {
+  if (!a.profitClosed || !b.profitClosed) return -1;
+  return a.profitClosed - b.profitClosed;
+};
+
 const botStore = useBotStore();
 
 const allToggled = computed<boolean>({
@@ -156,6 +161,7 @@ const tableItems = computed<TableItem[]>(() => {
       }
     }
   });
+  val.sort(sortFunction);
   val.push(summary);
   return val as unknown as TableItem[];
 });

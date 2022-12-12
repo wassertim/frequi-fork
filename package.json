@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "test:unit": "vitest",
+    "build": "vite build && cd dist && cp index.html 404.html",
+    "test:unit": "jest",
     "check-types": "vue-tsc --noEmit",
     "lint": "eslint --ext .ts,vue src tests",
     "lint-ci": "eslint --no-fix --ext .ts,vue src tests",

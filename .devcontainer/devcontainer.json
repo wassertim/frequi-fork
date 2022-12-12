@@ -33,7 +33,8 @@
         "vscode-icons-team.vscode-icons",
         "hediet.vscode-drawio",
         "ZixuanChen.vitest-explorer",
-        "antfu.iconify"
+        "antfu.iconify",
+        "GitHub.copilot"
       ]
     }
   },

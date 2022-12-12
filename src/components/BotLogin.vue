@@ -83,12 +83,11 @@
 </template>
 
 <script setup lang="ts">
-import { useUserService } from '@/shared/userService';
 import { AuthPayload, AuthStorageWithBotId } from '@/types';
 
 import { useBotStore } from '@/stores/ftbotwrapper';
 import { useRoute, useRouter } from 'vue-router';
-import axios from 'axios';
+import { useCredentialsService } from '@/shared/credentialsService';
 
 const props = defineProps({
   inModal: { default: false, type: Boolean },
@@ -155,64 +154,10 @@ const handleSubmit = async () => {
     return;
   }
   errorMessage.value = '';
-  // Push the name to submitted names
-  try {
-    const botId = botEdit.value ? props.existingAuth.botId : botStore.nextBotId;
-    const userService = useUserService(botId);
-    await userService.login(auth.value);
-    if (botEdit.value) {
-      // Bot editing ...
-      botStore.botStores[botId].isBotLoggedIn = true;
-      botStore.botStores[botId].isBotOnline = true;
-      // botStore.allRefreshFull();
-      emitLoginResult(true);
-    } else {
-      // Add new bot
-      const sortId = Object.keys(botStore.availableBots).length + 1;
-      botStore.addBot({
-        botName: auth.value.botName,
-        botId,
-        botUrl: auth.value.url,
-        sortId: sortId,
-      });
-      // switch to newly added bot
-      botStore.selectBot(botId);
-      emitLoginResult(true);
-      botStore.allRefreshFull();
-    }
-
-    if (props.inModal === false) {
-      if (typeof route?.query.redirect === 'string') {
-        const resolved = router.resolve({ path: route.query.redirect });
-        if (resolved.name === '404') {
-          router.push('/');
-        } else {
-          router.push(resolved.path);
-        }
-      } else {
-        router.push('/');
-      }
-    }
-  } catch (error) {
-    errorMessageCORS.value = false;
-    // this.nameState = false;
-    console.error(error);
-    if (axios.isAxiosError(error) && error.response && error.response.status === 401) {
-      nameState.value = false;
-      pwdState.value = false;
-      errorMessage.value = 'Connected to bot, however Login failed, Username or Password wrong.';
-    } else {
-      urlState.value = false;
-      errorMessage.value = `Login failed.
-Please verify that the bot is running, the Bot API is enabled and the URL is reachable.
-You can verify this by navigating to ${auth.value.url}/api/v1/ping to make sure the bot API is reachable`;
-      if (auth.value.url !== window.location.origin) {
-        errorMessageCORS.value = true;
-      }
-    }
-    console.error(errorMessage.value);
-    emitLoginResult(false);
-  }
+  const credentialsService = useCredentialsService();
+  credentialsService.saveBotCredentials(auth.value.username, auth.value.password, auth.value.url);
+  emitLoginResult(true);
+  router.push('/');
 };
 
 const handleOk = (evt) => {

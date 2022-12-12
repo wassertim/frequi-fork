@@ -1,6 +1,7 @@
 <template>
   <div>
     <b-button @click="openLoginModal()"><i-mdi-login class="me-1" />{{ loginText }}</b-button>
+    <b-button @click="logout()"><LoginIcon :size="16" class="me-1" />logout</b-button>
     <b-modal
       id="modal-prevent-closing"
       v-model="loginViewOpen"
@@ -35,6 +36,9 @@ const handleLoginResult = (result: boolean) => {
 const handleOk = (evt) => {
   evt.preventDefault();
   loginForm.value?.handleSubmit();
+};
+const logout = async () => {
+  window.location.reload();
 };
 const openLoginModal = async (botInfo: AuthStorageWithBotId | undefined = undefined) => {
   loginInfo.value = botInfo;
