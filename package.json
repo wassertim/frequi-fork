@@ -5,7 +5,7 @@
   "scripts": {
     "serve": "vite",
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && cd dist && cp index.html 404.html",
     "test:unit": "jest",
     "check-types": "vue-tsc --noEmit",
     "lint": "eslint --ext .ts,vue src tests",
