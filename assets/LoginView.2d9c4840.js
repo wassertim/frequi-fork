@@ -1,0 +1,2 @@
+import{_ as a,d as _,aF as s,r as e,o as c,c as r,b as o,w as i}from"./index.cf317eb3.js";const d=_({name:"LoginView",components:{Login:s}}),p={class:"container"};function l(m,f,g,u,v,L){const n=e("Login"),t=e("b-card");return c(),r("div",p,[o(t,{header:"Freqtrade bot Login"},{default:i(()=>[o(n,{ref:"loginForm"},null,512)]),_:1})])}var x=a(d,[["render",l],["__scopeId","data-v-5d5a93cf"]]);export{x as default};
+//# sourceMappingURL=LoginView.2d9c4840.js.map
