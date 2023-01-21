@@ -11,6 +11,11 @@ export interface BacktestPayload {
   stake_amount?: string;
   dry_run_wallet?: number;
   enable_protections?: boolean;
+  backtest_cache?: string;
+  freqaimodel?: string;
+  freqai?: {
+    identifier: string;
+  };
 }
 
 export interface PairResult {
@@ -132,6 +137,10 @@ export interface StrategyBacktestResult {
 
   csum_min: number;
   csum_max: number;
+  sortino?: number;
+  sharpe?: number;
+  calmar?: number;
+  expectancy?: number;
 
   winner_holding_avg: string;
   winner_holding_avg_s: number;

@@ -41,6 +41,7 @@ import { showAlert } from './alerts';
 import { useWebSocket } from '@vueuse/core';
 import { FTWsMessage, FtWsMessageTypes } from '@/types/wsMessageTypes';
 import { showNotification } from '@/shared/notifications';
+import { FreqAIModelListResult } from '../types/types';
 
 export function createBotSubStore(botId: string, botName: string) {
   const userService = useUserService(botId);
@@ -81,6 +82,7 @@ export function createBotSubStore(botId: string, botName: string) {
         historyStatus: LoadingStatus.loading,
         strategyPlotConfig: undefined as PlotConfig | undefined,
         strategyList: [] as string[],
+        freqaiModelList: [] as string[],
         strategy: {} as StrategyResult,
         pairlist: [] as string[],
         currentLocks: undefined as LockResponse | undefined,
@@ -211,7 +213,7 @@ export function createBotSubStore(botId: string, botName: string) {
           try {
             this.refreshing = true;
             // TODO: Should be AxiosInstance
-            const updates: Promise<any>[] = [];
+            const updates: Promise<unknown>[] = [];
             updates.push(this.getPerformance());
             updates.push(this.getProfit());
             updates.push(this.getTrades());
@@ -398,14 +400,23 @@ export function createBotSubStore(botId: string, botName: string) {
       },
       async getStrategyPlotConfig() {
         try {
-          const result = await api.get<PlotConfig>('/plot_config');
-          const plotConfig = result.data;
+          const payload = {};
+          if (this.isWebserverMode) {
+            if (!this.strategy.strategy) {
+              return Promise.reject({ data: 'No strategy selected' });
+            }
+            payload['strategy'] = this.strategy.strategy;
+          }
+
+          const { data: plotConfig } = await api.get<PlotConfig>('/plot_config', {
+            params: { ...payload },
+          });
           if (plotConfig.subplots === null) {
             // Subplots should not be null but an empty object
             // TODO: Remove this fix when fix in freqtrade is populated further.
             plotConfig.subplots = {};
           }
-          this.strategyPlotConfig = result.data;
+          this.strategyPlotConfig = plotConfig;
           return Promise.resolve();
         } catch (data) {
           console.error(data);
@@ -426,6 +437,16 @@ export function createBotSubStore(botId: string, botName: string) {
         try {
           const { data } = await api.get<StrategyResult>(`/strategy/${strategy}`, {});
           this.strategy = data;
+          return Promise.resolve(data);
+        } catch (error) {
+          console.error(error);
+          return Promise.reject(error);
+        }
+      },
+      async getFreqAIModelList() {
+        try {
+          const { data } = await api.get<FreqAIModelListResult>('/freqaimodels');
+          this.freqaiModelList = data.freqaimodels;
           return Promise.resolve(data);
         } catch (error) {
           console.error(error);
@@ -850,7 +871,7 @@ export function createBotSubStore(botId: string, botName: string) {
         ) {
           return;
         }
-        const { status, data, send, open, close, ws } = useWebSocket(
+        const { send, close } = useWebSocket(
           // 'ws://localhost:8080/api/v1/message/ws?token=testtoken',
           `${userService.getBaseWsUrl()}/message/ws?token=${userService.getAccessToken()}`,
           {

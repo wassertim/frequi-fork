@@ -2,19 +2,20 @@
   <div>
     <div class="mb-2">
       <label class="me-auto h3">Balance</label>
-      <b-button class="float-end" size="sm" @click="botStore.activeBot.getBalance"
-        >&#x21bb;</b-button
-      >
-      <b-form-checkbox
-        v-model="hideSmallBalances"
-        class="float-end"
-        size="sm"
-        title="Hide small balances"
-        button
-      >
-        <HideIcon v-if="hideSmallBalances" :size="16" />
-        <ShowIcon v-else :size="16" />
-      </b-form-checkbox>
+      <div class="float-end d-flex flex-row">
+        <b-button
+          size="sm"
+          title="Hide small balances"
+          @click="hideSmallBalances = !hideSmallBalances"
+        >
+          <HideIcon v-if="hideSmallBalances" :size="16" />
+          <ShowIcon v-else :size="16" />
+        </b-button>
+
+        <b-button class="float-end" size="sm" @click="botStore.activeBot.getBalance"
+          >&#x21bb;</b-button
+        >
+      </div>
     </div>
     <BalanceChart v-if="balanceCurrencies" :currencies="balanceCurrencies" />
     <div>
@@ -22,7 +23,7 @@
         <strong>{{ botStore.activeBot.balance.note }}</strong>
       </p>
       <b-table class="table-sm" :items="balanceCurrencies" :fields="tableFields">
-        <template slot="bottom-row">
+        <template #custom-foot>
           <td><strong>Total</strong></td>
           <td>
             <span

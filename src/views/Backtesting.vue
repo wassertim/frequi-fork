@@ -101,7 +101,7 @@
           <span>Strategy</span>
           <StrategySelect v-model="strategy"></StrategySelect>
         </div>
-        <b-card bg-variant="light" :disabled="botStore.activeBot.backtestRunning">
+        <b-card :disabled="botStore.activeBot.backtestRunning">
           <!-- Backtesting parameters -->
           <b-form-group
             label-cols-lg="2"
@@ -194,6 +194,55 @@
                 v-model="enableProtections"
               ></b-form-checkbox>
             </b-form-group>
+            <b-form-group
+              v-if="botStore.activeBot.botApiVersion >= 2.22"
+              label-cols-sm="5"
+              label="Cache Backtest results:"
+              label-align-sm="right"
+              label-for="enable-cache"
+            >
+              <b-form-checkbox id="enable-cache" v-model="allowCache"></b-form-checkbox>
+            </b-form-group>
+            <template v-if="botStore.activeBot.botApiVersion >= 2.22">
+              <b-form-group
+                label-cols-sm="5"
+                label="Enable FreqAI:"
+                label-align-sm="right"
+                label-for="enable-freqai"
+              >
+                <template #label>
+                  <div class="d-flex justify-content-center">
+                    <span class="me-2">Enable FreqAI:</span>
+                    <InfoBox
+                      hint="Assumes freqAI configuration is setup in the configuration, and the strategy is a freqAI strategy. Will fail if that's not the case."
+                    />
+                  </div>
+                </template>
+                <b-form-checkbox id="enable-freqai" v-model="freqAI.enabled"></b-form-checkbox>
+              </b-form-group>
+              <b-form-group
+                v-if="freqAI.enabled"
+                label-cols-sm="5"
+                label="FreqAI identifier:"
+                label-align-sm="right"
+                label-for="freqai-identifier"
+              >
+                <b-form-input
+                  id="freqai-identifier"
+                  v-model="freqAI.identifier"
+                  placeholder="Use config default"
+                ></b-form-input>
+              </b-form-group>
+              <b-form-group
+                v-if="freqAI.enabled"
+                label-cols-sm="5"
+                label="FreqAI Model"
+                label-align-sm="right"
+                label-for="freqai-model"
+              >
+                <FreqaiModelSelect id="freqai-model" v-model="freqAI.model"></FreqaiModelSelect>
+              </b-form-group>
+            </template>
 
             <!-- <b-form-group label-cols-sm="5" label="Fee:" label-align-sm="right" label-for="fee">
               <b-form-input
@@ -272,152 +321,136 @@
   </div>
 </template>
 
-<script lang="ts">
+<script setup lang="ts">
 import TimeRangeSelect from '@/components/ftbot/TimeRangeSelect.vue';
 import BacktestResultView from '@/components/ftbot/BacktestResultView.vue';
 import BacktestResultSelect from '@/components/ftbot/BacktestResultSelect.vue';
 import StrategySelect from '@/components/ftbot/StrategySelect.vue';
+import FreqaiModelSelect from '@/components/ftbot/FreqaiModelSelect.vue';
 import TimeframeSelect from '@/components/ftbot/TimeframeSelect.vue';
 import BacktestHistoryLoad from '@/components/ftbot/BacktestHistoryLoad.vue';
 import BacktestGraphsView from '@/components/ftbot/BacktestGraphsView.vue';
 import BacktestResultChart from '@/components/ftbot/BacktestResultChart.vue';
+import InfoBox from '@/components/general/InfoBox.vue';
 
 import { BacktestPayload } from '@/types';
 
 import { formatPercent } from '@/shared/formatters';
-import { defineComponent, computed, ref, onMounted, watch } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
 import { useBotStore } from '@/stores/ftbotwrapper';
 
-export default defineComponent({
-  name: 'Backtesting',
-  components: {
-    BacktestResultView,
-    BacktestGraphsView,
-    BacktestResultSelect,
-    BacktestHistoryLoad,
-    TimeRangeSelect,
-    StrategySelect,
-    TimeframeSelect,
-    BacktestResultChart,
-  },
-  setup() {
-    const botStore = useBotStore();
+const botStore = useBotStore();
 
-    const hasBacktestResult = computed(() =>
-      botStore.activeBot.backtestHistory
-        ? Object.keys(botStore.activeBot.backtestHistory).length !== 0
-        : false,
-    );
-    const timeframe = computed((): string => {
-      try {
-        return botStore.activeBot.selectedBacktestResult.timeframe;
-      } catch (err) {
-        return '';
-      }
-    });
-
-    const strategy = ref('');
-    const selectedTimeframe = ref('');
-    const selectedDetailTimeframe = ref('');
-    const timerange = ref('');
-    const showLeftBar = ref(false);
-    const enableProtections = ref(false);
-    const stakeAmountUnlimited = ref(false);
-    const maxOpenTrades = ref('');
-    const stakeAmount = ref('');
-    const startingCapital = ref('');
-    const btFormMode = ref('run');
-    const pollInterval = ref<number | null>(null);
-
-    const selectBacktestResult = () => {
-      // Set parameters for this result
-      strategy.value = botStore.activeBot.selectedBacktestResult.strategy_name;
-      selectedTimeframe.value = botStore.activeBot.selectedBacktestResult.timeframe;
-      selectedDetailTimeframe.value =
-        botStore.activeBot.selectedBacktestResult.timeframe_detail || '';
-      timerange.value = botStore.activeBot.selectedBacktestResult.timerange;
-    };
-
-    watch(
-      () => botStore.activeBot.selectedBacktestResultKey,
-      () => {
-        selectBacktestResult();
-      },
-    );
-
-    const clickBacktest = () => {
-      const btPayload: BacktestPayload = {
-        strategy: strategy.value,
-        timerange: timerange.value,
-        // eslint-disable-next-line @typescript-eslint/camelcase
-        enable_protections: enableProtections.value,
-      };
-      const openTradesInt = parseInt(maxOpenTrades.value, 10);
-      if (openTradesInt) {
-        // eslint-disable-next-line @typescript-eslint/camelcase
-        btPayload.max_open_trades = openTradesInt;
-      }
-      if (stakeAmountUnlimited.value) {
-        // eslint-disable-next-line @typescript-eslint/camelcase
-        btPayload.stake_amount = 'unlimited';
-      } else {
-        const stakeAmountLoc = Number(stakeAmount.value);
-        if (stakeAmountLoc) {
-          // eslint-disable-next-line @typescript-eslint/camelcase
-          btPayload.stake_amount = stakeAmountLoc.toString();
-        }
-      }
-
-      const startingCapitalLoc = Number(startingCapital.value);
-      if (startingCapitalLoc) {
-        // eslint-disable-next-line @typescript-eslint/camelcase
-        btPayload.dry_run_wallet = startingCapitalLoc;
-      }
-
-      if (selectedTimeframe.value) {
-        btPayload.timeframe = selectedTimeframe.value;
-      }
-      if (selectedDetailTimeframe.value) {
-        // eslint-disable-next-line @typescript-eslint/camelcase
-        btPayload.timeframe_detail = selectedDetailTimeframe.value;
-      }
-
-      botStore.activeBot.startBacktest(btPayload);
-    };
-
-    onMounted(() => botStore.activeBot.getState());
-    watch(
-      () => botStore.activeBot.backtestRunning,
-      () => {
-        if (botStore.activeBot.backtestRunning === true) {
-          pollInterval.value = window.setInterval(botStore.activeBot.pollBacktest, 1000);
-        } else if (pollInterval.value) {
-          clearInterval(pollInterval.value);
-          pollInterval.value = null;
-        }
-      },
-    );
-    return {
-      botStore,
-
-      formatPercent,
-      hasBacktestResult,
-      timeframe,
-      strategy,
-      selectedTimeframe,
-      selectedDetailTimeframe,
-      timerange,
-      enableProtections,
-      showLeftBar,
-      stakeAmountUnlimited,
-      maxOpenTrades,
-      stakeAmount,
-      startingCapital,
-      btFormMode,
-      clickBacktest,
-    };
-  },
+const hasBacktestResult = computed(() =>
+  botStore.activeBot.backtestHistory
+    ? Object.keys(botStore.activeBot.backtestHistory).length !== 0
+    : false,
+);
+const timeframe = computed((): string => {
+  try {
+    return botStore.activeBot.selectedBacktestResult.timeframe;
+  } catch (err) {
+    return '';
+  }
 });
+
+const strategy = ref('');
+const selectedTimeframe = ref('');
+const selectedDetailTimeframe = ref('');
+const timerange = ref('');
+const showLeftBar = ref(false);
+const freqAI = ref({
+  enabled: false,
+  model: '',
+  identifier: '',
+});
+const enableProtections = ref(false);
+const stakeAmountUnlimited = ref(false);
+const allowCache = ref(true);
+const maxOpenTrades = ref('');
+const stakeAmount = ref('');
+const startingCapital = ref('');
+const btFormMode = ref('run');
+const pollInterval = ref<number | null>(null);
+
+const selectBacktestResult = () => {
+  // Set parameters for this result
+  strategy.value = botStore.activeBot.selectedBacktestResult.strategy_name;
+  botStore.activeBot.getStrategy(strategy.value);
+  selectedTimeframe.value = botStore.activeBot.selectedBacktestResult.timeframe;
+  selectedDetailTimeframe.value = botStore.activeBot.selectedBacktestResult.timeframe_detail || '';
+  timerange.value = botStore.activeBot.selectedBacktestResult.timerange;
+};
+
+watch(
+  () => botStore.activeBot.selectedBacktestResultKey,
+  () => {
+    selectBacktestResult();
+  },
+);
+
+const clickBacktest = () => {
+  const btPayload: BacktestPayload = {
+    strategy: strategy.value,
+    timerange: timerange.value,
+    // eslint-disable-next-line @typescript-eslint/camelcase
+    enable_protections: enableProtections.value,
+  };
+  const openTradesInt = parseInt(maxOpenTrades.value, 10);
+  if (openTradesInt) {
+    // eslint-disable-next-line @typescript-eslint/camelcase
+    btPayload.max_open_trades = openTradesInt;
+  }
+  if (stakeAmountUnlimited.value) {
+    // eslint-disable-next-line @typescript-eslint/camelcase
+    btPayload.stake_amount = 'unlimited';
+  } else {
+    const stakeAmountLoc = Number(stakeAmount.value);
+    if (stakeAmountLoc) {
+      // eslint-disable-next-line @typescript-eslint/camelcase
+      btPayload.stake_amount = stakeAmountLoc.toString();
+    }
+  }
+
+  const startingCapitalLoc = Number(startingCapital.value);
+  if (startingCapitalLoc) {
+    // eslint-disable-next-line @typescript-eslint/camelcase
+    btPayload.dry_run_wallet = startingCapitalLoc;
+  }
+
+  if (selectedTimeframe.value) {
+    btPayload.timeframe = selectedTimeframe.value;
+  }
+  if (selectedDetailTimeframe.value) {
+    // eslint-disable-next-line @typescript-eslint/camelcase
+    btPayload.timeframe_detail = selectedDetailTimeframe.value;
+  }
+  if (!allowCache.value) {
+    // eslint-disable-next-line @typescript-eslint/camelcase
+    btPayload.backtest_cache = 'none';
+  }
+  if (freqAI.value.enabled) {
+    btPayload.freqaimodel = freqAI.value.model;
+    if (freqAI.value.identifier !== '') {
+      btPayload.freqai = { identifier: freqAI.value.identifier };
+    }
+  }
+
+  botStore.activeBot.startBacktest(btPayload);
+};
+
+onMounted(() => botStore.activeBot.getState());
+watch(
+  () => botStore.activeBot.backtestRunning,
+  () => {
+    if (botStore.activeBot.backtestRunning === true) {
+      pollInterval.value = window.setInterval(botStore.activeBot.pollBacktest, 1000);
+    } else if (pollInterval.value) {
+      clearInterval(pollInterval.value);
+      pollInterval.value = null;
+    }
+  },
+);
 </script>
 
 <style lang="scss" scoped>
