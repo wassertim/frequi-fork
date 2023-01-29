@@ -37,12 +37,10 @@ async function addBot({ botName, ip, username, password, botStore }: BotInfo) {
 export async function loadBots() {
   configureAws();
   const botStore = useBotStore();
-  const credentials = await Auth.currentCredentials();
-  const services = await getEcsServices(credentials);
-  const { username, password } = await getBotCredentials();
-  if (!username || !password) {
-    throw new Error('No username or password');
-  }
+  const awsCredentials = await Auth.currentCredentials();
+  const services = await getEcsServices(awsCredentials);
+  const [username, password] = await getBotCredentials();
+
   await Promise.all(
     services.map(({ service, publicIp }) =>
       addBot({ botName: service, ip: publicIp, username, password, botStore }),
