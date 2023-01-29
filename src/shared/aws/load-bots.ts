@@ -4,7 +4,8 @@ import { useUserService } from '../userService';
 import { useBotStore } from '@/stores/ftbotwrapper';
 import { AuthPayload, BotDescriptor } from '@/types';
 import { configureAws } from './configuration';
-import { getBotCredentials, getEcsServices } from './get-services';
+import { getEcsServices } from './get-services';
+import { getBotCredentials } from './get-bot-credentials';
 
 interface BotInfo {
   botName: string;
@@ -33,19 +34,18 @@ async function addBot({ botName, ip, username, password, botStore }: BotInfo) {
   botStore.addBot(botDescriptor);
 }
 
-export function loadBots() {
-  const botStore = useBotStore();
+export async function loadBots() {
   configureAws();
-  Auth.currentCredentials().then(async (credentials) => {
-    const services = await getEcsServices(credentials);
-    const { username, password } = await getBotCredentials();
-    if (!username || !password) {
-      throw new Error('No username or password');
-    }
-    await Promise.all(
-      services.map(({ service, publicIp }) => {
-        return addBot({ botName: service, ip: publicIp, username, password, botStore });
-      }),
-    );
-  });
+  const botStore = useBotStore();
+  const credentials = await Auth.currentCredentials();
+  const services = await getEcsServices(credentials);
+  const { username, password } = await getBotCredentials();
+  if (!username || !password) {
+    throw new Error('No username or password');
+  }
+  await Promise.all(
+    services.map(({ service, publicIp }) =>
+      addBot({ botName: service, ip: publicIp, username, password, botStore }),
+    ),
+  );
 }

@@ -1,7 +1,7 @@
 import AWS from 'aws-sdk';
 import { PromiseResult } from 'aws-sdk/lib/request';
 import { ICredentials } from '@aws-amplify/core';
-import { GetParametersRequest } from 'aws-sdk/clients/ssm';
+
 const cluster = 'ecs_playground';
 
 interface ServiceTask {
@@ -78,28 +78,4 @@ export async function getEcsServices(credentials: ICredentials): Promise<Service
   );
 
   return serviceTasks.filter((service) => !!service.publicIp && !!service.service);
-}
-
-export async function getBotCredentials() {
-  const parameterStore = new AWS.SSM();
-  const parameterRequest: GetParametersRequest = {
-    Names: ['parameter_6', 'parameter_7'],
-  };
-  const botCredentials = await parameterStore.getParameters(parameterRequest).promise();
-
-  const params = botCredentials.Parameters?.reduce((acc, parameter) => {
-    if (!parameter.Name || !parameter.Value) {
-      return acc;
-    }
-    acc[parameter.Name] = parameter.Value;
-
-    return acc;
-  }, {} as Record<string, string>);
-  if (!params) {
-    return {};
-  }
-  return {
-    username: params['parameter_6'],
-    password: params['parameter_7'],
-  };
 }
