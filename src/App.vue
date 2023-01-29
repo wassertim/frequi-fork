@@ -13,6 +13,7 @@ import Body from '@/components/layout/Body.vue';
 import { setTimezone } from './shared/formatters';
 import { defineComponent, onMounted, watch } from 'vue';
 import { useSettingsStore } from './stores/settings';
+import { loadBots } from './shared/aws/load-bots';
 export default defineComponent({
   name: 'App',
   components: { NavBar, Body, NavFooter },
@@ -20,6 +21,7 @@ export default defineComponent({
     const settingsStore = useSettingsStore();
     onMounted(() => {
       setTimezone(settingsStore.timezone);
+      loadBots();
     });
     watch(
       () => settingsStore.timezone,
