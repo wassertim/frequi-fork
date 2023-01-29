@@ -1,3 +1,4 @@
+import AWS from 'aws-sdk';
 import { Auth } from 'aws-amplify';
 import { ref } from '@vue/reactivity';
 import { useUserService } from '../userService';
@@ -38,7 +39,11 @@ export async function loadBots() {
   configureAws();
   const botStore = useBotStore();
   const awsCredentials = await Auth.currentCredentials();
-  const services = await getEcsServices(awsCredentials);
+  AWS.config.update({
+    ...awsCredentials,
+    region: 'eu-central-1',
+  });
+  const services = await getEcsServices();
   const [username, password] = await getBotCredentials();
 
   await Promise.all(

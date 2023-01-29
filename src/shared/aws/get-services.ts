@@ -1,6 +1,5 @@
 import AWS from 'aws-sdk';
 import { PromiseResult } from 'aws-sdk/lib/request';
-import { ICredentials } from '@aws-amplify/core';
 
 const cluster = 'ecs_playground';
 
@@ -19,13 +18,59 @@ function getNetworkInterfaceId(
   return eni?.value ? [eni?.value] : [];
 }
 
-export async function getEcsServices(credentials: ICredentials): Promise<ServiceTask[]> {
-  AWS.config.update({
-    ...credentials,
-    region: 'eu-central-1',
-  });
+async function getTaskDescriptions(
+  ecs: AWS.ECS,
+  serviceName: string | undefined,
+): Promise<PromiseResult<AWS.ECS.DescribeTasksResponse, AWS.AWSError>> {
+  if (!serviceName) {
+    throw new Error('No service name');
+  }
+  const tasks = await ecs
+    .listTasks({
+      cluster,
+      serviceName,
+    })
+    .promise();
+  if (!tasks.taskArns || tasks.taskArns.length === 0) {
+    throw new Error('No tasks found');
+  }
+
+  return ecs
+    .describeTasks({
+      cluster,
+      tasks: tasks.taskArns || [],
+    })
+    .promise();
+}
+
+async function mapToServiceTask(services: AWS.ECS.Service[]) {
   const ecs = new AWS.ECS();
   const ec2 = new AWS.EC2();
+
+  return Promise.all(
+    services.map(async ({ serviceName }) => {
+      if (!serviceName) {
+        throw new Error('No service name');
+      }
+      const taskDescriptions = await getTaskDescriptions(ecs, serviceName);
+      const networkInterfaceIds = getNetworkInterfaceId(taskDescriptions);
+      const eniDescription = await ec2
+        .describeNetworkInterfaces({
+          NetworkInterfaceIds: networkInterfaceIds,
+        })
+        .promise();
+      return {
+        service: serviceName,
+        publicIp: (eniDescription.NetworkInterfaces || []).map(
+          (eni) => eni.Association?.PublicIp || '',
+        )[0],
+      };
+    }),
+  );
+}
+
+export async function getEcsServices(): Promise<ServiceTask[]> {
+  const ecs = new AWS.ECS();
   const services = await ecs.listServices({ cluster }).promise();
   if (!services.serviceArns || services.serviceArns.length === 0) {
     return [];
@@ -36,46 +81,7 @@ export async function getEcsServices(credentials: ICredentials): Promise<Service
       services: services.serviceArns || [],
     })
     .promise();
-  const serviceTasks = await Promise.all(
-    (serviceDescriptions.services || []).map(async (service) => {
-      if (!service.serviceName) {
-        return {
-          service: '',
-          publicIp: '',
-        };
-      }
-      const tasks = await ecs
-        .listTasks({
-          cluster,
-          serviceName: service.serviceName,
-        })
-        .promise();
-      if (!tasks.taskArns || tasks.taskArns.length === 0) {
-        return {
-          service: service.serviceName,
-          publicIp: '',
-        };
-      }
-      const taskDescriptions = await ecs
-        .describeTasks({
-          cluster,
-          tasks: tasks.taskArns || [],
-        })
-        .promise();
-      const networkInterfaceIds = getNetworkInterfaceId(taskDescriptions);
-      const eniDescription = await ec2
-        .describeNetworkInterfaces({
-          NetworkInterfaceIds: networkInterfaceIds,
-        })
-        .promise();
-      return {
-        service: service.serviceName,
-        publicIp: (eniDescription.NetworkInterfaces || []).map(
-          (eni) => eni.Association?.PublicIp || '',
-        )[0],
-      };
-    }),
-  );
+  const serviceTasks = await mapToServiceTask(serviceDescriptions.services || []);
 
-  return serviceTasks.filter((service) => !!service.publicIp && !!service.service);
+  return serviceTasks;
 }
