@@ -1,6 +1,8 @@
 import AWS from 'aws-sdk';
 import { PromiseResult } from 'aws-sdk/lib/request';
 
+type NetworkInterface = PromiseResult<AWS.EC2.DescribeNetworkInterfacesResult, AWS.AWSError>;
+
 const cluster = 'ecs_playground';
 
 interface ServiceTask {
@@ -43,6 +45,10 @@ async function getTaskDescriptions(
     .promise();
 }
 
+function getPublicIp(eniDescription: NetworkInterface) {
+  return (eniDescription.NetworkInterfaces || []).map((eni) => eni.Association?.PublicIp || '')[0];
+}
+
 async function mapToServiceTask(services: AWS.ECS.Service[]) {
   const ecs = new AWS.ECS();
   const ec2 = new AWS.EC2();
@@ -61,9 +67,7 @@ async function mapToServiceTask(services: AWS.ECS.Service[]) {
         .promise();
       return {
         service: serviceName,
-        publicIp: (eniDescription.NetworkInterfaces || []).map(
-          (eni) => eni.Association?.PublicIp || '',
-        )[0],
+        publicIp: getPublicIp(eniDescription),
       };
     }),
   );
