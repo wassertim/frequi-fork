@@ -4,7 +4,7 @@ import { ref } from '@vue/reactivity';
 import { useUserService } from '../userService';
 import { useBotStore } from '@/stores/ftbotwrapper';
 import { AuthPayload, BotDescriptor } from '@/types';
-import { configureAws } from './configuration';
+import { configureAws, region } from './configuration';
 import { getEcsServices } from './get-services';
 import { getBotCredentials } from './get-bot-credentials';
 
@@ -41,7 +41,7 @@ export async function loadBots() {
   const awsCredentials = await Auth.currentCredentials();
   AWS.config.update({
     ...awsCredentials,
-    region: 'eu-central-1',
+    region,
   });
   const services = await getEcsServices();
   const [username, password] = await getBotCredentials();

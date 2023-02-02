@@ -1,6 +1,6 @@
 import { Amplify } from 'aws-amplify';
 
-const region = 'eu-central-1';
+export const region = 'eu-central-1';
 
 const domain = 'ecs-playground-login';
 const identityPoolId = 'eu-central-1:6d10e0b4-f593-479e-9afb-50c96555b2b4';
