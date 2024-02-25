@@ -10,13 +10,14 @@ interface BotInfo {
   ip: string;
   username: string;
   password: string;
+  url: string;
 }
 
-async function addBot({ botName, ip, username, password }: BotInfo) {
-  const url = `http://${ip}:8080`;
+async function addBot({ botName, ip, username, password, url }: BotInfo) {
+  const botUrl = ip ? `http://${ip}:8080` : url;
   const auth = ref<AuthPayload>({
     botName,
-    url,
+    url: botUrl,
     username,
     password,
   });
@@ -42,8 +43,8 @@ export async function loadBots() {
   const services = await getEcsServices(url);
 
   await Promise.all(
-    services.map(({ service, publicIp }) =>
-      addBot({ botName: service, ip: publicIp, username, password }),
+    services.map(({ service, publicIp, url }) =>
+      addBot({ botName: service, ip: publicIp, username, password, url }),
     ),
   );
 }
